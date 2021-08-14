@@ -35,10 +35,10 @@ class CreateUserAPIView(generics.CreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class CreateUserProfileAPIView(generics.CreateAPIView):
-    permission_classes = (IsAuthenticated, )
-    model = UserProfile
-    serializer_class = ...
+# class CreateUserProfileAPIView(generics.CreateAPIView):
+#     permission_classes = (IsAuthenticated, )
+#     model = UserProfile
+#     serializer_class = ...
 
 
 

@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
@@ -11,7 +12,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
     # username = serializers.CharField(validators=[UniqueValidator(queryset=User.objects.all())])
 
     class Meta:
-        model = get_user_model()
+        model = User
         fields = ('username', 'password', 'email')
         # extra_kwargs = {'email': {'required': True}}
         # validators = [
@@ -20,6 +21,15 @@ class CreateUserSerializer(serializers.ModelSerializer):
         #         fields=('username', 'email')
         #     )
         # ]
+
+    def validate_password(self, value: str) -> str:
+        """
+        Hash value passed by user.
+
+        :param value: password of a user
+        :return: a hashed version of the password
+        """
+        return make_password(value)
 
     # def validate(self, data):
     #     print(data)
@@ -41,9 +51,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         exclude = ('id', )
 
-    def create(self, validated_data):
-        print(validated_data)
-        return super().create(validated_data)
+    # def create(self, validated_data):
+    #     print(validated_data)
+    #     return super().create(validated_data)
 
 
 

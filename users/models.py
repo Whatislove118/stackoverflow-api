@@ -46,7 +46,7 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    #id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Каждому пользователю нужен понятный человеку уникальный идентификатор,
     # который мы можем использовать для предоставления User в пользовательском
     # интерфейсе. Мы так же проиндексируем этот столбец в базе данных для
