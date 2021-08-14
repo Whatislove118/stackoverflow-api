@@ -45,6 +45,8 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Каждому пользователю нужен понятный человеку уникальный идентификатор,
     # который мы можем использовать для предоставления User в пользовательском
     # интерфейсе. Мы так же проиндексируем этот столбец в базе данных для
@@ -104,10 +106,42 @@ class User(AbstractBaseUser, PermissionsMixin):
         """ Аналогично методу get_full_name(). """
         return self.username
 
+    class Meta:
+        unique_together = ('username', 'email', )
+
 
 class UserProfile(models.Model):
+
+    """ В данном примере потраю uuid как на всех сайтах"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    logo = models.ImageField(blank=False, null=False, default='media/default/')
+    user = models.OneToOneField(User, blank=False, null=True, on_delete=models.SET_NULL)
+
+    logo = models.ImageField(blank=False, null=False, upload_to=settings.CUSTOM_USER_PROFILE_LOGO.format(id),
+                             default=settings.DEFAULT_USER_PROFILE_LOGO)
+    location = models.CharField(blank=True, null=True, max_length=200)
+    about = models.TextField(blank=True, null=True, max_length=255)
+    title = models.CharField(blank=True, null=True, max_length=100)
+
+
+""" отдельная таблица нужна для того, чтобы потом создать отдельный сервис который будет проверять все это"""
+class UserProfileContactInfo(models.Model):
+    """ Для того, чтобы сделать select_related при запросе на профиль"""
+    user_profile = models.OneToOneField(UserProfile, primary_key=True, blank=False, on_delete=models.CASCADE)
+
+    website_link = models.URLField(blank=True, null=True)
+    github_link = models.URLField(blank=True, null=True)
+    twitter_link = models.URLField(blank=True, null=True)
+
+    website_link_active = models.BooleanField(default=False)
+    github_link_active = models.BooleanField(default=False)
+    twitter_link_active = models.BooleanField(default=False)
+
+
+
+
+
+
+
 
 
 

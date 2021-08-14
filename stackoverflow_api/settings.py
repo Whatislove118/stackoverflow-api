@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'users',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -150,6 +151,11 @@ else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = Path(BASE_DIR, '/var/www/media/')
 
+
+DEFAULT_USER_PROFILE_LOGO = '/media/users/default/logo.png'
+CUSTOM_USER_PROFILE_LOGO = 'media/default/{}/logo/'
+GITHUB_LINK_PATTERN = 'https://github.com/{}'
+TWITTER_LINK_PATTERN = 'https://twitter.com/{}'
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
@@ -160,7 +166,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(seconds=10), ## вставляется в exp при генерации токенов
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': False,  # при рефрешу токенов выдает новую пару
+    'ROTATE_REFRESH_TOKENS': True,  # при рефрешу токенов выдает новую пару
     'BLACKLIST_AFTER_ROTATION': True, # для этого используется специальноое приложение blacklist app. ('rest_framework_simplejwt.token_blacklist' в installed_apps)
     'UPDATE_LAST_LOGIN': True,
 
