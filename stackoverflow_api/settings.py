@@ -90,12 +90,12 @@ DATABASES = {
     }
 }
 
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSESS': [
-#         'custom_authorization.CustomAuthorization',
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
-#     ]
-# }
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSESS': [
+        'custom_authorization.CustomAuthorization',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ]
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -164,7 +164,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # SIMPLE JWT SETTINGS
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=10), ## вставляется в exp при генерации токенов
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5), ## вставляется в exp при генерации токенов
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,  # при рефрешу токенов выдает новую пару
     'BLACKLIST_AFTER_ROTATION': True, # для этого используется специальноое приложение blacklist app. ('rest_framework_simplejwt.token_blacklist' в installed_apps)

@@ -30,6 +30,8 @@ class UserManager(BaseUserManager):
         user = self.model(username=username, email=self.normalize_email(email))
         user.set_password(password)
         user.save()
+        print(user.pk)
+        self._create_user_profile(user)
         return user
 
     def create_superuser(self, username, email, password):
@@ -43,10 +45,20 @@ class UserManager(BaseUserManager):
 
         return user
 
+    def _create_user_profile(self, user):
+        """ Создает и инициализирует профиль юзера вместе с контактной информацией"""
+        print(user)
+        user_profile = UserProfile()
+        user_profile.user = user
+        user_profile.save()
+        user_contact_info = UserProfileContactInfo()
+        user_contact_info.user_profile = user_profile
+        user_contact_info.save()
+
 
 class User(AbstractBaseUser, PermissionsMixin):
 
-    #id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Каждому пользователю нужен понятный человеку уникальный идентификатор,
     # который мы можем использовать для предоставления User в пользовательском
     # интерфейсе. Мы так же проиндексируем этот столбец в базе данных для
@@ -92,7 +104,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         """ Строковое представление модели (отображается в консоли) """
-        return self.email
+        return self.username
 
     def get_full_name(self):
         """
@@ -112,9 +124,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class UserProfile(models.Model):
 
-    """ В данном примере потраю uuid как на всех сайтах"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(User, blank=False, null=True, on_delete=models.SET_NULL)
+    #""" В данном примере потраю uuid как на всех сайтах"""
+    #id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(User, primary_key=True, to_field='id', on_delete=models.CASCADE, default='')
 
     logo = models.ImageField(blank=False, null=False, upload_to=settings.CUSTOM_USER_PROFILE_LOGO.format(id),
                              default=settings.DEFAULT_USER_PROFILE_LOGO)
@@ -126,7 +138,7 @@ class UserProfile(models.Model):
 """ отдельная таблица нужна для того, чтобы потом создать отдельный сервис который будет проверять все это"""
 class UserProfileContactInfo(models.Model):
     """ Для того, чтобы сделать select_related при запросе на профиль"""
-    user_profile = models.OneToOneField(UserProfile, primary_key=True, blank=False, on_delete=models.CASCADE)
+    user_profile = models.OneToOneField(UserProfile, to_field='user', primary_key=True, blank=False, on_delete=models.CASCADE)
 
     website_link = models.URLField(blank=True, null=True)
     github_link = models.URLField(blank=True, null=True)

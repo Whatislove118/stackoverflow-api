@@ -31,6 +31,10 @@ class CreateUserSerializer(serializers.ModelSerializer):
         """
         return make_password(value)
 
+    def create(self, validated_data):
+        print(validated_data)
+        return User.objects.create_user(**validated_data)
+
     # def validate(self, data):
     #     print(data)
     #     return data
@@ -51,9 +55,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         exclude = ('id', )
 
-    # def create(self, validated_data):
-    #     print(validated_data)
-    #     return super().create(validated_data)
+    def create(self, validated_data):
+        print(validated_data)
+        return super().create(validated_data)
 
 
 
