@@ -1,9 +1,185 @@
-from django.contrib.auth.models import AbstractUser
+import uuid
+from datetime import datetime, timedelta
+
+from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
+from django.contrib.auth.models import AbstractUser, PermissionsMixin
 from django.db import models
 
 
 # Create your models here.
+from django.db.models import Manager
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-class User(AbstractUser):
-    login = models.CharField(max_length=150, blank=True, unique=False)
+from stackoverflow_api import settings
+
+
+class UserManager(BaseUserManager):
+    """
+    Django требует, чтобы кастомные пользователи определяли свой собственный
+    класс Manager. Унаследовавшись от BaseUserManager, мы получаем много того
+    же самого кода, который Django использовал для создания User (для демонстрации).
+    """
+
+    def create_user(self, username, email, password=None):
+        """ Создает и возвращает пользователя с имэйлом, паролем и именем. """
+        if username is None:
+            raise TypeError('Users must have a username.')
+        #
+        if email is None:
+            raise TypeError('Users must have an email address.')
+
+        user = self.model(username=username, email=self.normalize_email(email))
+        user.set_password(password)
+        user.save()
+        print(user.pk)
+        self._create_user_profile(user)
+        return user
+
+    def create_superuser(self, username, email, password):
+        """ Создает и возввращет пользователя с привилегиями суперадмина. """
+        if password is None:
+            raise TypeError('Superusers must have a password.')
+        user = self.create_user(username, email, password)
+        user.is_superuser = True
+        user.is_staff = True
+        user.save()
+
+        return user
+
+    def get(self, *args, **kwargs):
+        try:
+            user = super().get(*args, **kwargs)
+            return user
+        except User.DoesNotExist:
+            return None
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Каждому пользователю нужен понятный человеку уникальный идентификатор,
+    # который мы можем использовать для предоставления User в пользовательском
+    # интерфейсе. Мы так же проиндексируем этот столбец в базе данных для
+    # повышения скорости поиска в дальнейшем.
+    username = models.CharField(db_index=True, max_length=255, unique=True)
+
+    # Так же мы нуждаемся в поле, с помощью которого будем иметь возможность
+    # связаться с пользователем и идентифицировать его при входе в систему.
+    # Поскольку адрес почты нам нужен в любом случае, мы также будем
+    # использовать его для входы в систему, так как это наиболее
+    # распространенная форма учетных данных на данный момент (ну еще телефон).
+    email = models.EmailField(db_index=True, unique=True)
+
+    # Когда пользователь более не желает пользоваться нашей системой, он может
+    # захотеть удалить свой аккаунт. Для нас это проблема, так как собираемые
+    # нами данные очень ценны, и мы не хотим их удалять :) Мы просто предложим
+    # пользователям способ деактивировать учетку вместо ее полного удаления.
+    # Таким образом, они не будут отображаться на сайте, но мы все еще сможем
+    # далее анализировать информацию.
+    is_active = models.BooleanField(default=True)
+
+    # Этот флаг определяет, кто может войти в административную часть нашего
+    # сайта. Для большинства пользователей это флаг будет ложным.
+    is_staff = models.BooleanField(default=False)
+
+    # Временная метка создания объекта.
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Временная метка показывающая время последнего обновления объекта.
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Дополнительный поля, необходимые Django
+    # при указании кастомной модели пользователя.
+
+    # Свойство USERNAME_FIELD сообщает нам, какое поле мы будем использовать
+    # для входа в систему.
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email', 'password']
+
+    # Сообщает Django, что определенный выше класс UserManager
+    # должен управлять объектами этого типа.
+    objects = UserManager()
+
+    def __str__(self):
+        """ Строковое представление модели (отображается в консоли) """
+        return self.username
+
+    def get_full_name(self):
+        """
+        Этот метод требуется Django для таких вещей, как обработка электронной
+        почты. Обычно это имя фамилия пользователя, но поскольку мы не
+        используем их, будем возвращать username.
+        """
+        return self.username
+
+    def get_short_name(self):
+        """ Аналогично методу get_full_name(). """
+        return self.username
+
+    def _create_user_profile(self):
+        """ Создает и инициализирует профиль юзера вместе с контактной информацией"""
+        print(self)
+        user_profile = UserProfile()
+        user_profile.user = self
+        user_contact_info = UserProfileContactInfo()
+        user_profile.contacts = user_contact_info
+        user_contact_info.save()
+        user_profile.save()
+
+    def save(self, *args, **kwargs):
+        """ Переопределил данный метод для включения логики по созданию дефолтного юзерпрофайл для пользователя"""
+        super().save(*args, **kwargs)
+        self._create_user_profile()
+
+    class Meta:
+        unique_together = ('username', 'email', )
+
+class UserProfileManager(models.Manager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('userprofilecontactinfo__user_profile')
+
+# TODO 1. Сделать уникальными все линки и добавить транзакцию в создание юзера
+""" отдельная таблица нужна для того, чтобы потом создать отдельный сервис который будет проверять все это"""
+class UserProfileContactInfo(models.Model):
+    """ Для того, чтобы сделать select_related при запросе на профиль"""
+
+    website_link = models.URLField(blank=True, null=True)
+    github_link = models.URLField(blank=True, null=True)
+    twitter_link = models.URLField(blank=True, null=True)
+
+    website_link_active = models.BooleanField(default=False)
+    github_link_active = models.BooleanField(default=False)
+    twitter_link_active = models.BooleanField(default=False)
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, primary_key=True, to_field='id', on_delete=models.CASCADE)
+    contacts = models.OneToOneField(UserProfileContactInfo, blank=False,
+                                        on_delete=models.CASCADE)
+    logo = models.ImageField(blank=False, null=False, upload_to=settings.CUSTOM_USER_PROFILE_LOGO.format(id),
+                             default=settings.DEFAULT_USER_PROFILE_LOGO)
+    location = models.CharField(blank=True, null=True, max_length=200)
+    about = models.TextField(blank=True, null=True, max_length=255)
+    title = models.CharField(blank=True, null=True, max_length=100)
+
+    test = UserProfileManager()
+    objects = Manager()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
