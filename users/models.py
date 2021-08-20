@@ -7,6 +7,7 @@ from django.db import models
 
 
 # Create your models here.
+from django.db.models import Manager
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from stackoverflow_api import settings
@@ -30,6 +31,8 @@ class UserManager(BaseUserManager):
         user = self.model(username=username, email=self.normalize_email(email))
         user.set_password(password)
         user.save()
+        print(user.pk)
+        self._create_user_profile(user)
         return user
 
     def create_superuser(self, username, email, password):
@@ -43,8 +46,17 @@ class UserManager(BaseUserManager):
 
         return user
 
+    def get(self, *args, **kwargs):
+        try:
+            user = super().get(*args, **kwargs)
+            return user
+        except User.DoesNotExist:
+            return None
+
 
 class User(AbstractBaseUser, PermissionsMixin):
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Каждому пользователю нужен понятный человеку уникальный идентификатор,
     # который мы можем использовать для предоставления User в пользовательском
     # интерфейсе. Мы так же проиндексируем этот столбец в базе данных для
@@ -90,7 +102,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         """ Строковое представление модели (отображается в консоли) """
-        return self.email
+        return self.username
 
     def get_full_name(self):
         """
@@ -104,10 +116,68 @@ class User(AbstractBaseUser, PermissionsMixin):
         """ Аналогично методу get_full_name(). """
         return self.username
 
+    def _create_user_profile(self):
+        """ Создает и инициализирует профиль юзера вместе с контактной информацией"""
+        print(self)
+        user_profile = UserProfile()
+        user_profile.user = self
+        user_contact_info = UserProfileContactInfo()
+        user_profile.contacts = user_contact_info
+        user_contact_info.save()
+        user_profile.save()
+
+    def save(self, *args, **kwargs):
+        """ Переопределил данный метод для включения логики по созданию дефолтного юзерпрофайл для пользователя"""
+        super().save(*args, **kwargs)
+        self._create_user_profile()
+
+    class Meta:
+        unique_together = ('username', 'email', )
+
+class UserProfileManager(models.Manager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('userprofilecontactinfo__user_profile')
+
+# TODO 1. Сделать уникальными все линки и добавить транзакцию в создание юзера
+""" отдельная таблица нужна для того, чтобы потом создать отдельный сервис который будет проверять все это"""
+class UserProfileContactInfo(models.Model):
+    """ Для того, чтобы сделать select_related при запросе на профиль"""
+
+    website_link = models.URLField(blank=True, null=True)
+    github_link = models.URLField(blank=True, null=True)
+    twitter_link = models.URLField(blank=True, null=True)
+
+    website_link_active = models.BooleanField(default=False)
+    github_link_active = models.BooleanField(default=False)
+    twitter_link_active = models.BooleanField(default=False)
+
 
 class UserProfile(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    logo = models.ImageField(blank=False, null=False, default='media/default/')
+    user = models.OneToOneField(User, primary_key=True, to_field='id', on_delete=models.CASCADE)
+    contacts = models.OneToOneField(UserProfileContactInfo, blank=False,
+                                        on_delete=models.CASCADE)
+    logo = models.ImageField(blank=False, null=False, upload_to=settings.CUSTOM_USER_PROFILE_LOGO.format(id),
+                             default=settings.DEFAULT_USER_PROFILE_LOGO)
+    location = models.CharField(blank=True, null=True, max_length=200)
+    about = models.TextField(blank=True, null=True, max_length=255)
+    title = models.CharField(blank=True, null=True, max_length=100)
+
+    test = UserProfileManager()
+    objects = Manager()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
