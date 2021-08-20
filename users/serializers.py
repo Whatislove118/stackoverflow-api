@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
-from users.models import UserProfile
+from users.models import UserProfile, UserProfileContactInfo
 
 User = get_user_model()
 
@@ -22,6 +22,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         #     )
         # ]
 
+
     def validate_password(self, value: str) -> str:
         """
         Hash value passed by user.
@@ -31,9 +32,12 @@ class CreateUserSerializer(serializers.ModelSerializer):
         """
         return make_password(value)
 
-    def create(self, validated_data):
-        print(validated_data)
-        return User.objects.create_user(**validated_data)
+    # def create(self, validated_data):
+    #     return super().create(validated_data)
+
+    # def create(self, validated_data):
+    #     print(validated_data)
+    #     return User.objects.create_user(**validated_data)
 
     # def validate(self, data):
     #     print(data)
@@ -50,10 +54,18 @@ class CreateUserSerializer(serializers.ModelSerializer):
 #         return token
 
 
+class UserProfileContactInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfileContactInfo
+        fields = ['website_link', 'twitter_link', 'github_link']
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
+    contacts = UserProfileContactInfoSerializer(many=False, read_only=True) # так мы добавляем сериализованный обьект в другой обьект
+
     class Meta:
         model = UserProfile
-        exclude = ('id', )
+        fields = ('logo', 'location', 'about', 'title', 'contacts')
 
     def create(self, validated_data):
         print(validated_data)
