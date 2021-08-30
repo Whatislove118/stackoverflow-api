@@ -8,8 +8,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from users.models import UserProfile
-from users.permissions import IsResourceOwner
-from users.serializers import CreateUserSerializer, UserProfileSerializer
+from users.permissions import IsResourceOwner, IsResourceOwnerAccount
+from users.serializers import UserSerializer, UserProfileSerializer, ChangePasswordSerializer
 
 User = get_user_model()
 
@@ -25,11 +25,10 @@ class GetUserAPIView(generics.RetrieveAPIView):
 class UserCreateAPIView(generics.CreateAPIView):
     permission_classes = (permissions.AllowAny, )
     model = get_user_model()
-    serializer_class = CreateUserSerializer
+    serializer_class = UserSerializer
 
     ## этого можно было и не делать, но чисто для себя я написал
     def post(self, request, *args, **kwargs):
-        print(request.user)
         user = request.data
         serializer = self.serializer_class(data=user)
         if serializer.is_valid(raise_exception=True):
@@ -37,19 +36,19 @@ class UserCreateAPIView(generics.CreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class TestClass(generics.RetrieveAPIView):
-    multiple_lookup_fields = ('username', 'email', )
-    # пример как сделать поиск по нескольким лукапам
-    # данный метод вызывается тогда, когда достается обьект по лукапам
-    # тут недоделанный вариант, пока нет в этом необходимости
-    def get_object(self):
-        queryset = self.get_queryset()
-        filter = {}
-        for field in self.multiple_lookup_fields:
-            filter[field] = self.kwargs[field]
-        obj = get_object_or_404(queryset, **filter)
-        self.check_object_permissions(self.request, obj)
-        return obj
+# class TestLookup(generics.RetrieveAPIView):
+#     multiple_lookup_fields = ('username', 'email', )
+#     # пример как сделать поиск по нескольким лукапам
+#     # данный метод вызывается тогда, когда достается обьект по лукапам
+#     # тут недоделанный вариант, пока нет в этом необходимости
+#     def get_object(self):
+#         queryset = self.get_queryset()
+#         filter = {}
+#         for field in self.multiple_lookup_fields:
+#             filter[field] = self.kwargs[field]
+#         obj = get_object_or_404(queryset, **filter)
+#         self.check_object_permissions(self.request, obj)
+#         return obj
 
 class UserProfileDetailAPIView(generics.RetrieveUpdateAPIView):
     queryset = UserProfile.objects.all()
@@ -57,7 +56,6 @@ class UserProfileDetailAPIView(generics.RetrieveUpdateAPIView):
     permission_classes = (permissions.IsAuthenticatedOrReadOnly, IsResourceOwner) ## данный пермиссионс требует авторизации только в тех методах запросов, которые изменяют данные
     authentication_classes = (JWTAuthentication, )
     serializer_class = UserProfileSerializer
-    detail = {'detail': 'User with that id doesn\'t exist'}
 
     def get(self, request, *args, **kwargs):
         data = self.get_object()
@@ -76,6 +74,24 @@ class UserProfileDetailAPIView(generics.RetrieveUpdateAPIView):
 
 
 
+class ChangePasswordAPIView(generics.UpdateAPIView):
+    queryset = User.objects.all()
+    permission_classes = (permissions.IsAuthenticated, IsResourceOwnerAccount)
+    authentication_classes = (JWTAuthentication, )
+    serializer_class = ChangePasswordSerializer
+    lookup_field = 'username'
+    model = get_user_model()
+
+    def post(self, request, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(user=self.get_object())
+        return Response(serializer.validated_data)
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), username=self.kwargs.get(self.lookup_field))
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 

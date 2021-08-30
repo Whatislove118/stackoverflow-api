@@ -118,7 +118,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def _create_user_profile(self):
         """ Создает и инициализирует профиль юзера вместе с контактной информацией"""
-        print(self)
         user_profile = UserProfile()
         user_profile.user = self
         user_contact_info = UserProfileContactInfo()
@@ -154,7 +153,7 @@ class UserProfileContactInfo(models.Model):
 
 
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, primary_key=True, to_field='id', on_delete=models.CASCADE)
+    user = models.OneToOneField(User, primary_key=True, related_name='user_profile', to_field='id', on_delete=models.CASCADE)
     contacts = models.OneToOneField(UserProfileContactInfo, blank=False,
                                         on_delete=models.CASCADE)
     logo = models.ImageField(blank=False, null=False, upload_to=settings.CUSTOM_USER_PROFILE_LOGO.format(id),

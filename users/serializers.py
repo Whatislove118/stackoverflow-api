@@ -8,29 +8,6 @@ from users.models import UserProfile, UserProfileContactInfo
 User = get_user_model()
 
 
-class CreateUserSerializer(serializers.ModelSerializer):
-    # username = serializers.CharField(validators=[UniqueValidator(queryset=User.objects.all())])
-
-    class Meta:
-        model = User
-        fields = ('username', 'password', 'email')
-        # extra_kwargs = {'email': {'required': True}}
-        # validators = [
-        #     UniqueTogetherValidator(
-        #         queryset=User.objects.all(),
-        #         fields=('username', 'email')
-        #     )
-        # ]
-
-
-    def validate_password(self, value: str) -> str:
-        """
-        Hash value passed by user.
-
-        :param value: password of a user
-        :return: a hashed version of the password
-        """
-        return make_password(value)
 
     # def create(self, validated_data):
     #     return super().create(validated_data)
@@ -53,6 +30,36 @@ class CreateUserSerializer(serializers.ModelSerializer):
 #         print(token)
 #         return token
 
+class ChangePasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField()
+    repeat_new_password = serializers.CharField()
+    old_password = serializers.CharField()
+
+    """ Здесь мы будем хранить логику по изменению пароля"""
+    def save(self, **kwargs):
+        user = kwargs.get('user')
+        user.set_password(self.validated_data.get('new_password'))
+        user.save()
+        return user
+
+    def validate(self, attrs):
+        new_password = attrs.get('new_password')
+
+
+    # def save(self, **kwargs):
+    #     user = kwargs.get('user')
+    #     print(user)
+    #     old_password = kwargs.get('password')
+    #     print(old_password)
+    #     new_password = kwargs.get('new_password')
+    #     user.set_password(new_password)
+    #     user.save()
+
+    # def validate_old_password(self, value: str) -> str:
+    #     if value == self.old_password:
+    #         raise serializers.ValidationError('Пароли совпадают')
+    #     return super().validate_password(value)
+
 
 class UserProfileContactInfoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -67,9 +74,36 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ('logo', 'location', 'about', 'title', 'contacts')
 
-    def create(self, validated_data):
-        print(validated_data)
-        return super().create(validated_data)
+    # def create(self, validated_data):
+    #     return super().create(validated_data)
+
+class UserSerializer(serializers.ModelSerializer):
+    # username = serializers.CharField(validators=[UniqueValidator(queryset=User.objects.all())])
+    user_profile = UserProfileSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'password', 'email', 'user_profile')
+        extra_kwargs = {
+            'password': {
+                'write_only': True
+            }
+        }
+        depth = 2
+        # validators = [
+        #     UniqueTogetherValidator(
+        #         queryset=User.objects.all(),
+        #         fields=('username', 'email')
+        #     )
+        # ]
 
 
+    def validate_password(self, value: str) -> str:
+        """
+        Hash value passed by user.
+
+        :param value: password of a user
+        :return: a hashed version of the password
+        """
+        return make_password(value)
 
